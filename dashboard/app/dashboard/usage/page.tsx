@@ -1,121 +1,117 @@
 "use client";
 
-import { BarChart3, TrendingUp, Cpu, Zap, Activity } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { BarChart3, Clock, Zap, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 export default function UsagePage() {
-  const modelBreakdown = [
-    {
-      model: "claude-3-7-sonnet",
-      requests: 342,
-      promptTokens: "1.42M",
-      completionTokens: "420k",
-      costINR: "₹184.20",
-      percent: 65,
-    },
-    {
-      model: "gpt-4o",
-      requests: 120,
-      promptTokens: "680k",
-      completionTokens: "180k",
-      costINR: "₹72.10",
-      percent: 25,
-    },
-    {
-      model: "deepseek-r1",
-      requests: 84,
-      promptTokens: "920k",
-      completionTokens: "310k",
-      costINR: "₹24.50",
-      percent: 10,
-    },
-  ];
+  const router = useRouter();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        const { data: dbData, error } = await supabase.rpc(
+          "get_user_dashboard_data"
+        );
+        if (error) throw error;
+        setData(dbData);
+      } catch (err) {
+        console.error("Failed to load usage:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsage();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-xs font-mono text-zinc-500">
+          Fetching live token telemetry...
+        </div>
+      </div>
+    );
+  }
+
+  const spent5h = data?.spent_5h_cents || 0;
+  const limit5h = data?.limit_5h_cents || 50;
+  const spentWeek = data?.spent_week_cents || 0;
+  const limitWeek = data?.limit_week_cents || 200;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="border-b border-white/5 pb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-          Usage & Quota Analytics
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Detailed breakdown of your token consumption, latency, and costs across models.
-        </p>
+    <div className="space-y-8 max-w-6xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Usage & Analytics
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Real-time breakdown of rolling window consumption and model token allocations.
+          </p>
+        </div>
+        <Link
+          href="/pricing"
+          className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 border border-indigo-500/20 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Upgrade Quota <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <TrendingUp className="h-4 w-4 text-indigo-400" />
-            Total Monthly Tokens
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <Clock className="h-4 w-4 text-indigo-400" />
+              5-Hour Rolling Limit
+            </h3>
+            <span className="text-xs font-mono font-bold text-white">
+              ₹{(spent5h / 100).toFixed(2)} / ₹{(limit5h / 100).toFixed(2)}
+            </span>
           </div>
-          <div className="text-3xl font-bold font-mono text-white">3.93 Million</div>
-          <p className="text-[11px] text-emerald-400 font-medium">+18% vs last week</p>
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <Zap className="h-4 w-4 text-emerald-400" />
-            Average Edge Latency
+          <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-all"
+              style={{ width: `${Math.min(100, (spent5h / limit5h) * 100)}%` }}
+            />
           </div>
-          <div className="text-3xl font-bold font-mono text-white">&lt;380ms</div>
-          <p className="text-[11px] text-slate-400 font-medium">Cloudflare Mumbai ap-south-1</p>
+          <p className="text-xs text-zinc-400">
+            Window refreshes continuously. Unused quota rolls forward without penalty.
+          </p>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <Activity className="h-4 w-4 text-purple-400" />
-            Total API Invocations
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <Zap className="h-4 w-4 text-emerald-400" />
+              7-Day Allocation
+            </h3>
+            <span className="text-xs font-mono font-bold text-white">
+              ₹{(spentWeek / 100).toFixed(2)} / ₹{(limitWeek / 100).toFixed(2)}
+            </span>
           </div>
-          <div className="text-3xl font-bold font-mono text-white">546 Requests</div>
-          <p className="text-[11px] text-indigo-400 font-medium">99.98% Success Rate</p>
-        </div>
-      </div>
-
-      {/* Model Breakdown Table */}
-      <div className="rounded-3xl border border-white/10 bg-[#0F111C] overflow-hidden">
-        <div className="p-6 border-b border-white/5">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-indigo-400" />
-            Consumption by Model
-          </h3>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#08090E] text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-white/5">
-              <tr>
-                <th className="px-6 py-3.5">Model</th>
-                <th className="px-6 py-3.5">Invocations</th>
-                <th className="px-6 py-3.5">Prompt Tokens</th>
-                <th className="px-6 py-3.5">Completion Tokens</th>
-                <th className="px-6 py-3.5">Equivalent Cost</th>
-                <th className="px-6 py-3.5">Traffic Share</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {modelBreakdown.map((row, i) => (
-                <tr key={i} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 font-mono font-medium text-white">{row.model}</td>
-                  <td className="px-6 py-4 text-slate-300">{row.requests}</td>
-                  <td className="px-6 py-4 font-mono text-slate-400">{row.promptTokens}</td>
-                  <td className="px-6 py-4 font-mono text-slate-400">{row.completionTokens}</td>
-                  <td className="px-6 py-4 font-mono font-semibold text-emerald-400">{row.costINR}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-16 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-indigo-500 rounded-full"
-                          style={{ width: `${row.percent}%` }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400">{row.percent}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.min(100, (spentWeek / limitWeek) * 100)}%` }}
+            />
+          </div>
+          <p className="text-xs text-zinc-400">
+            Weekly maximum spend ceiling. Upgrade plan for unlimited scaling.
+          </p>
         </div>
       </div>
     </div>

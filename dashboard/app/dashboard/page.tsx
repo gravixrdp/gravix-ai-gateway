@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
@@ -8,25 +9,66 @@ import {
   KeyRound,
   Zap,
   Activity,
-  ArrowUpRight,
   Copy,
   Check,
   ShieldCheck,
+  Plus,
+  Terminal,
+  ArrowUpRight,
 } from "lucide-react";
 
 export default function DashboardOverviewPage() {
-  const [stats, setStats] = useState({
-    spent5h: 120, // cents
-    limit5h: 500, // cents
-    spentWeek: 850,
-    limitWeek: 3500,
-    plan: "Pro Developer",
-    activeKeys: 2,
-  });
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [countdown, setCountdown] = useState("");
 
-  const percent5h = Math.min(100, Math.round((stats.spent5h / stats.limit5h) * 100));
-  const percentWeek = Math.min(100, Math.round((stats.spentWeek / stats.limitWeek) * 100));
+  const loadData = async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: dbData, error } = await supabase.rpc(
+        "get_user_dashboard_data"
+      );
+      if (error) throw error;
+      setData(dbData);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Update countdown to 5h reset
+  useEffect(() => {
+    if (!data?.window_5h_reset_at) return;
+
+    const timer = setInterval(() => {
+      const diff = new Date(data.window_5h_reset_at).getTime() - Date.now();
+      if (diff <= 0) {
+        setCountdown("Resetting...");
+        loadData();
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        setCountdown(`${hours}h ${mins}m ${secs}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data?.window_5h_reset_at]);
 
   const copyUrl = () => {
     navigator.clipboard.writeText("https://api.gravixhost.app/v1");
@@ -34,125 +76,190 @@ export default function DashboardOverviewPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-xs font-mono text-zinc-400">
+          <div className="h-4 w-4 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+          Connecting to Gravix Edge Database...
+        </div>
+      </div>
+    );
+  }
+
+  const spent5h = data?.spent_5h_cents || 0;
+  const limit5h = data?.limit_5h_cents || 50;
+  const percent5h = Math.min(100, Math.round((spent5h / limit5h) * 100));
+
+  const spentWeek = data?.spent_week_cents || 0;
+  const limitWeek = data?.limit_week_cents || 200;
+  const percentWeek = Math.min(100, Math.round((spentWeek / limitWeek) * 100));
+
+  const activeKeysCount = (data?.keys || []).filter((k: any) => k.is_active).length;
+
   return (
-    <div className="space-y-8">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
+    <div className="space-y-8 max-w-6xl">
+      {/* Header Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Developer Overview
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time quota monitoring and quickstart endpoints for your workspace.
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              Console Overview
+            </h1>
+            <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+              {data?.email}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1">
+            Edge router status, live window limits, and instant endpoints.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            {stats.plan} Active
+          <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Plan: {data?.plan_name || "Free Starter"}
           </span>
           <Link
             href="/dashboard/keys"
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-500 transition-all"
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
           >
-            + Create API Key
+            <Plus className="h-3.5 w-3.5" />
+            New API Key
           </Link>
         </div>
       </div>
 
-      {/* Quota Gauges Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Quotas & Rolling Limit Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 5-Hour Rolling Limit */}
-        <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-4">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-indigo-600/20 flex items-center justify-center text-indigo-400">
-                <Clock className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Clock className="h-3.5 w-3.5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">5-Hour Rolling Limit</h3>
-                <p className="text-[11px] text-slate-400">Resets automatically in 2h 45m</p>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  5-Hour Window Limit
+                </h3>
+                <p className="text-[11px] font-mono text-zinc-400">
+                  Resets in: <span className="text-indigo-400 font-semibold">{countdown || "5h 00m"}</span>
+                </p>
               </div>
             </div>
-            <span className="text-xs font-mono font-bold text-indigo-300">
-              ₹{(stats.spent5h / 100).toFixed(2)} / ₹{(stats.limit5h / 100).toFixed(2)}
+            <span className="text-xs font-mono font-bold text-white">
+              ₹{(spent5h / 100).toFixed(2)} / ₹{(limit5h / 100).toFixed(2)}
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div className="space-y-1.5">
-            <div className="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                className="h-full rounded-full bg-indigo-500 transition-all duration-300"
                 style={{ width: `${percent5h}%` }}
               />
             </div>
-            <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-              <span>{percent5h}% consumed</span>
-              <span>₹{((stats.limit5h - stats.spent5h) / 100).toFixed(2)} remaining</span>
+            <div className="flex justify-between text-[10px] font-mono text-zinc-500">
+              <span>{percent5h}% utilized</span>
+              <span>₹{((limit5h - spent5h) / 100).toFixed(2)} remaining</span>
             </div>
           </div>
         </div>
 
-        {/* Weekly Quota Cap */}
-        <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-4">
+        {/* 7-Day Weekly Cap */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400">
-                <Activity className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Activity className="h-3.5 w-3.5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Weekly Quota Cap</h3>
-                <p className="text-[11px] text-slate-400">7-day rolling allocation</p>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Weekly Rolling Cap
+                </h3>
+                <p className="text-[11px] font-mono text-zinc-400">7-Day Allocation</p>
               </div>
             </div>
-            <span className="text-xs font-mono font-bold text-purple-300">
-              ₹{(stats.spentWeek / 100).toFixed(2)} / ₹{(stats.limitWeek / 100).toFixed(2)}
+            <span className="text-xs font-mono font-bold text-white">
+              ₹{(spentWeek / 100).toFixed(2)} / ₹{(limitWeek / 100).toFixed(2)}
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div className="space-y-1.5">
-            <div className="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500"
+                className="h-full rounded-full bg-emerald-500 transition-all duration-300"
                 style={{ width: `${percentWeek}%` }}
               />
             </div>
-            <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-              <span>{percentWeek}% consumed</span>
-              <span>₹{((stats.limitWeek - stats.spentWeek) / 100).toFixed(2)} remaining</span>
+            <div className="flex justify-between text-[10px] font-mono text-zinc-500">
+              <span>{percentWeek}% utilized</span>
+              <span>₹{((limitWeek - spentWeek) / 100).toFixed(2)} remaining</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Configuration Card */}
-      <div className="rounded-3xl border border-white/10 bg-[#0F111C] p-6 space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <Zap className="h-4 w-4 text-indigo-400" />
-          Global Gateway Connection Endpoints
-        </h3>
+      {/* Gateway Connection Details */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-indigo-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+              Edge Base URL
+            </h3>
+          </div>
+          <span className="text-[11px] font-mono text-emerald-400">
+            Active Keys: {activeKeysCount}
+          </span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-[#08090E] border border-white/5 p-4 space-y-2">
-            <span className="text-xs font-semibold text-slate-400">OpenAI & Cursor Base URL</span>
-            <div className="flex items-center justify-between font-mono text-xs text-indigo-300 bg-white/5 p-2 rounded-lg">
+          <div className="rounded-xl bg-zinc-900/60 border border-zinc-800/80 p-3.5 space-y-2">
+            <span className="text-[11px] font-medium text-zinc-400">
+              OpenAI / Cursor Base URL
+            </span>
+            <div className="flex items-center justify-between font-mono text-xs text-indigo-300 bg-black/40 px-3 py-2 rounded-lg border border-zinc-800">
               <span>https://api.gravixhost.app/v1</span>
-              <button onClick={copyUrl} className="text-slate-400 hover:text-white">
+              <button
+                onClick={copyUrl}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             </div>
           </div>
 
-          <div className="rounded-xl bg-[#08090E] border border-white/5 p-4 space-y-2">
-            <span className="text-xs font-semibold text-slate-400">Anthropic Claude Code URL</span>
-            <div className="flex items-center justify-between font-mono text-xs text-purple-300 bg-white/5 p-2 rounded-lg">
+          <div className="rounded-xl bg-zinc-900/60 border border-zinc-800/80 p-3.5 space-y-2">
+            <span className="text-[11px] font-medium text-zinc-400">
+              Anthropic / Claude Code CLI Base URL
+            </span>
+            <div className="flex items-center justify-between font-mono text-xs text-purple-300 bg-black/40 px-3 py-2 rounded-lg border border-zinc-800">
               <span>https://api.gravixhost.app/v1</span>
-              <button onClick={copyUrl} className="text-slate-400 hover:text-white">
+              <button
+                onClick={copyUrl}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Quickstart snippet */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-zinc-400" />
+            1-Line Claude Code CLI Quickstart
+          </h3>
+          <Link href="/docs" className="text-xs text-indigo-400 hover:underline flex items-center gap-1">
+            All Guides <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="p-3 bg-black/60 rounded-xl border border-zinc-800 font-mono text-xs text-emerald-400 overflow-x-auto">
+          <code>{`export ANTHROPIC_BASE_URL="https://api.gravixhost.app/v1" && export ANTHROPIC_API_KEY="grx_live_••••••••" && claude`}</code>
         </div>
       </div>
     </div>

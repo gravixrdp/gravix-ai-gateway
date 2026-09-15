@@ -1,0 +1,9 @@
+name = "gravix-ai-gateway"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SUPABASE_URL = "https://bwnynwyoojfdjkvuibdp.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3bnlud3lvb2pmZGprdnVpYmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNTQyMDYsImV4cCI6MjEwMjYzMDIwNn0.HXYahk4phAkmiu3pJQ9bzGB2JNnN3rgRTK4xiG8Sa7Y"
+DEFAULT_UPSTREAM_URL = "https://openrouter.ai/api/v1"

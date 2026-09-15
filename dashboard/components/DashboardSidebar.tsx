@@ -13,6 +13,7 @@ import {
   CreditCard,
   BookOpen,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 
 export function DashboardSidebar() {
@@ -27,6 +28,7 @@ export function DashboardSidebar() {
   const navItems = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { label: "API Keys", href: "/dashboard/keys", icon: KeyRound },
+    { label: "Playground", href: "/dashboard/playground", icon: Sparkles },
     { label: "Usage & Limits", href: "/dashboard/usage", icon: BarChart3 },
     { label: "Request Logs", href: "/dashboard/logs", icon: ListFilter },
     { label: "Billing & Plans", href: "/dashboard/billing", icon: CreditCard },

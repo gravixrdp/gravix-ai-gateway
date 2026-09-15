@@ -11,7 +11,6 @@ import {
   Activity,
   Copy,
   Check,
-  ShieldCheck,
   Plus,
   Terminal,
   ArrowUpRight,
@@ -19,6 +18,7 @@ import {
 
 export default function DashboardOverviewPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [copied, setCopied] = useState(false);
@@ -47,6 +47,7 @@ export default function DashboardOverviewPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadData();
   }, []);
 
@@ -76,7 +77,7 @@ export default function DashboardOverviewPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex items-center gap-3 text-xs font-mono text-zinc-400">
@@ -107,7 +108,7 @@ export default function DashboardOverviewPage() {
               Console Overview
             </h1>
             <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-              {data?.email}
+              {data?.email || "developer@gravixhost.app"}
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">

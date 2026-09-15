@@ -75,7 +75,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} GravixAI (`gravixhost.app`). All rights reserved.</p>
+          <p>© 2026 GravixAI (gravixhost.app). All rights reserved.</p>
           <div className="flex gap-4 mt-4 md:mt-0">
             <Link href="/pricing" className="hover:text-slate-400">Terms of Service</Link>
             <Link href="/pricing" className="hover:text-slate-400">Privacy Policy</Link>

@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, TrendingDown, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, TrendingDown } from "lucide-react";
+
+function formatNumber(n: number) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
 
 export function TokenCalculator() {
+  const [mounted, setMounted] = useState(false);
   const [tokensPerDay, setTokensPerDay] = useState<number>(2); // in Millions
 
-  // Calculation (Official vs Gravix)
-  // Claude 3.7 official ~ $15/M blended = ~$30/day * 30 = $900/mo (~₹75,000)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const officialCostINR = Math.round(tokensPerDay * 30 * 1200);
-  const gravixPlanCostINR = 999; // Pro Plan ₹999/mo
+  const gravixPlanCostINR = 999;
   const savingsPercent = Math.round(
     ((officialCostINR - gravixPlanCostINR) / officialCostINR) * 100
   );
@@ -58,7 +65,7 @@ export function TokenCalculator() {
             Official Lab Billing
           </span>
           <p className="mt-2 text-2xl font-bold font-mono text-white">
-            ₹{officialCostINR.toLocaleString("en-IN")}
+            ₹{mounted ? formatNumber(officialCostINR) : "72,000"}
             <span className="text-xs text-slate-400 font-normal"> / mo</span>
           </p>
           <p className="mt-1 text-xs text-slate-400">Pay-as-you-go credit card bills</p>
@@ -82,11 +89,11 @@ export function TokenCalculator() {
             Total Monthly Savings
           </div>
           <p className="mt-2 text-2xl font-bold font-mono text-white">
-            {savingsPercent}%
+            {mounted ? savingsPercent : 98}%
             <span className="text-xs text-emerald-400 font-normal"> Saved</span>
           </p>
           <p className="mt-1 text-xs text-slate-300">
-            Keep ₹{(officialCostINR - gravixPlanCostINR).toLocaleString("en-IN")} in your pocket
+            Keep ₹{mounted ? formatNumber(officialCostINR - gravixPlanCostINR) : "71,001"} in your pocket
           </p>
         </div>
       </div>

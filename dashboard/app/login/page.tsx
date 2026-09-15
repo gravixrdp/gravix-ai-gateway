@@ -1,19 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Zap, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { Zap, Mail, Lock, ArrowRight } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    if (searchParams?.get("signup") === "true") {
+      setIsSignUp(true);
+    }
+  }, [searchParams]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +35,8 @@ export default function LoginPage() {
           password,
         });
         if (error) throw error;
-        setSuccessMsg("Account created! Logging you in...");
-        setTimeout(() => router.push("/dashboard"), 1500);
+        setSuccessMsg("Account created! Redirecting to Console...");
+        setTimeout(() => router.push("/dashboard"), 1200);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -60,7 +67,9 @@ export default function LoginPage() {
             {isSignUp ? "Create your Gravix Account" : "Sign in to your Dashboard"}
           </h2>
           <p className="mt-1 text-xs text-slate-400">
-            {isSignUp ? "Get instant access to your API keys and quotas" : "Manage your keys, limits, and real-time logs"}
+            {isSignUp
+              ? "Get instant access to your API keys and quotas"
+              : "Manage your keys, limits, and real-time logs"}
           </p>
         </div>
 
@@ -89,7 +98,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@example.com"
-                className="w-full rounded-xl border border-white/10 bg-[#08090E] pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-white/10 bg-[#08090E] pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-sans"
               />
             </div>
           </div>
@@ -106,7 +115,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full rounded-xl border border-white/10 bg-[#08090E] pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-white/10 bg-[#08090E] pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-sans"
               />
             </div>
           </div>
@@ -123,13 +132,30 @@ export default function LoginPage() {
 
         <div className="text-center pt-2">
           <button
+            type="button"
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-xs text-slate-400 hover:text-indigo-300 transition-colors"
           >
-            {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up for Free"}
+            {isSignUp
+              ? "Already have an account? Sign In"
+              : "Don't have an account? Sign Up for Free"}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#090A0F] text-xs font-mono text-zinc-500">
+          Loading authentication gateway...
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
